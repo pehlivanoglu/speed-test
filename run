@@ -1,3 +1,0 @@
-tsc src/server.ts
-echo "server.ts compiled"
-node src/server.js
