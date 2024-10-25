@@ -1,67 +1,66 @@
-import express = require('express');
-// import multer = require('multer');
+import express from 'express';
 
 const app = express();
-const PORT = process.env.PORT || 3000;
+app.use(express.json());
 
+const PORT = process.env.PORT || 3000;
 const MB: number = 1024 * 1024;
 
 //For download speed testing///////////////////////////////////////////////////////// {
-const testFile1 = Buffer.alloc(1 * MB, 'x');
-const testFile10 = Buffer.alloc(10 * MB, 'x');
-const testFile100 = Buffer.alloc(100 * MB, 'x');
-const testFile1000 = Buffer.alloc(1000 * MB, 'x');
+const testFile1MB = Buffer.alloc(1 * MB, 'x');
+const testFile10MB = Buffer.alloc(10 * MB, 'x');
+const testFile100MB = Buffer.alloc(100 * MB, 'x');
+const testFile1000MB = Buffer.alloc(1000 * MB, 'x');
 
+app.get('/download', (req, res) => {
+  try{
+    const size = parseInt(req.query.size as string, 10);
 
-app.get('/download1', (req, res) => {
-    console.log('Download request received');
+    let testFile;
+    if (size === 1) {
+      testFile = testFile1MB;
+    } else if (size === 10) {
+      testFile = testFile10MB;
+    } else if (size === 100) {
+      testFile = testFile100MB;
+    } else if (size === 1000) {
+      testFile = testFile1000MB;
+    } else {
+      throw new Error('Invalid size parameter');
+    }
+
+    console.log(`Download request received for ${size} MB file`);
+
     res.setHeader('Content-Type', 'application/octet-stream');
-    res.setHeader('Content-Length', testFile1.length.toString());
-    res.setHeader('Content-Disposition', 'attachment; filename="speed_test_file.bin"');
-    res.send(testFile1);
-});
-app.get('/download10', (req, res) => {
-  console.log('Download request received');
-  res.setHeader('Content-Type', 'application/octet-stream');
-  res.setHeader('Content-Length', testFile10.length.toString());
-  res.setHeader('Content-Disposition', 'attachment; filename="speed_test_file.bin"');
-  res.send(testFile10);
-});
-app.get('/download100', (req, res) => {
-  console.log('Download request received');
-  res.setHeader('Content-Type', 'application/octet-stream');
-  res.setHeader('Content-Length', testFile100.length.toString());
-  res.setHeader('Content-Disposition', 'attachment; filename="speed_test_file.bin"');
-  res.send(testFile100);
-});
-app.get('/download1000', (req, res) => {
-  console.log('Download request received');
-  res.setHeader('Content-Type', 'application/octet-stream');
-  res.setHeader('Content-Length', testFile1000.length.toString());
-  res.setHeader('Content-Disposition', 'attachment; filename="speed_test_file.bin"');
-  res.send(testFile1000);
+    res.setHeader('Content-Length', testFile.length.toString());
+    // res.setHeader('Content-Disposition', 'attachment; filename="speed_test_file.bin"');
+    
+    res.send(testFile);
+
+  }catch(e){
+    res.status(400).json({ message: 'Invalid size parameter' });
+  }
+  
 });
 ///////////////////////////////////////////////////////////////////////////////////////// }
 
+//For upload speed testing///////////////////////////////////////////////////////// {
+app.use('/upload', express.raw({ type: 'application/octet-stream', limit: '1000mb' }));
 
+app.post('/upload', (req ,res) => {
+  try{
+    const receivedBuffer = req.body as Buffer;
 
-// const upload = multer({ dest: 'uploads/' });
+    // console.log('Buffer received:', receivedBuffer);
+    console.log('Uploaded buffer length from client (MB):', receivedBuffer.length/MB);
 
-// // Route for handling single file uploads
-// app.post('/upload', upload.single('file'), (req, res) => {
-//   // 'file' refers to the name of the form field in the client
-//   if (!req.file) {
-//     return res.status(400).send('No file uploaded.');
-//   }
+    res.status(200).json({ message: 'Buffer received successfully'});
+  }catch(e){
+    res.status(400).json({ message: 'Invalid buffer received' });
+  }
 
-//   // File details are available in req.file
-//   console.log(req.file);
-//   res.send(`File uploaded: ${req.file.originalname}`);
-// });
-
-// app.listen(3000, () => {
-//   console.log('Server is running on http://localhost:3000');
-// });
+});
+///////////////////////////////////////////////////////////////////////////////////////// }
 
 app.listen(PORT, () => {
   console.log(`Server is running on http://localhost:${PORT}`);
