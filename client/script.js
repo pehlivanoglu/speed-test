@@ -1,21 +1,37 @@
 const MB = 1024 * 1024;
 const SERVER_URL = window.location.origin;
+const WS_SERVER_URL = `ws://${window.location.host}`;
 
-// Function to measure the ping (RTT)
 async function measurePing() {
-    const start = performance.now();
-    await fetch(SERVER_URL);
-    const end = performance.now();
-    return end - start;
+    return new Promise((resolve, reject) => {
+        const socket = new WebSocket(WS_SERVER_URL);
+
+        socket.onopen = () => {
+            const start = performance.now();
+            socket.send('ping');
+
+            socket.onmessage = () => {
+                const end = performance.now();
+                const rtt = end - start;
+                
+                socket.close();
+                resolve(rtt);
+            };
+        };
+
+        socket.onerror = (error) => {
+            reject(`WebSocket error: ${error.message}`);
+        };
+    });
 }
 
 async function measureDownloadSpeed(size) {
     const start = performance.now();
     const response = await fetch(`${SERVER_URL}/download?size=${size}`);
-    await response.arrayBuffer(); // Ensure the full response is downloaded
+    await response.arrayBuffer();
     const end = performance.now();
-    const time = (end - start) / 1000; // Convert time to seconds
-    const speed = (size * 8) / time; // Convert size to Mbps
+    const time = (end - start) / 1000;
+    const speed = (size * 8) / time;
     return speed;
 }
 
@@ -28,27 +44,27 @@ async function measureUploadSpeed(size) {
         body: testFile
     });
     const end = performance.now();
-    const time = (end - start) / 1000; // Convert time to seconds
-    const speed = (size * 8) / time; // Convert size to Mbps
+    const time = (end - start) / 1000;
+    const speed = (size * 8) / time;
     return speed;
 }
 
-// Event listener for the "Start Test" button
 document.getElementById('startTest').addEventListener('click', async () => {
     // Reset results while testing
     document.getElementById('ping').textContent = '...';
     document.getElementById('downloadSpeed').textContent = '...';
     document.getElementById('uploadSpeed').textContent = '...';
 
-    // Measure ping
-    const ping = await measurePing();
-    document.getElementById('ping').textContent = ping.toFixed(2);
+    try {
+        const ping = await measurePing();
+        document.getElementById('ping').textContent = ping.toFixed(2);
 
-    // Measure download speed with a 10 MB file
-    const downloadSpeed = await measureDownloadSpeed(10);
-    document.getElementById('downloadSpeed').textContent = downloadSpeed.toFixed(2);
+        const downloadSpeed = await measureDownloadSpeed(100);
+        document.getElementById('downloadSpeed').textContent = downloadSpeed.toFixed(2);
 
-    // Measure upload speed with a 10 MB file
-    const uploadSpeed = await measureUploadSpeed(10);
-    document.getElementById('uploadSpeed').textContent = uploadSpeed.toFixed(2);
+        const uploadSpeed = await measureUploadSpeed(10);
+        document.getElementById('uploadSpeed').textContent = uploadSpeed.toFixed(2);
+    } catch (error) {
+        console.error(error);
+    }
 });
