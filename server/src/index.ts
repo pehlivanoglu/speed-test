@@ -15,11 +15,10 @@ app.get('/', (req, res) => {
     res.sendFile(path.join(__dirname, '../../client/index.html'));
 });
 
-// WebSocket Server Setup
+// WebSocket server setup for ping measurement
 const server = http.createServer(app);
 const wss = new WebSocketServer({ server });
 
-// Handle WebSocket connections for ping measurement
 wss.on('connection', (ws) => {
     console.log('WebSocket connection established for ping measurement');
 
@@ -34,35 +33,14 @@ wss.on('connection', (ws) => {
     });
 });
 
-// Download speed testing endpoint
-const testFile1MB = Buffer.alloc(1 * MB, 'x');
-const testFile10MB = Buffer.alloc(10 * MB, 'x');
-const testFile100MB = Buffer.alloc(100 * MB, 'x');
-const testFile1000MB = Buffer.alloc(1000 * MB, 'x');
-
+// Download speed testing endpoint (dynamically handles file sizes)
 app.get('/download', (req, res) => {
     try {
-        const size = parseInt(req.query.size as string, 10);
-        let testFile;
+        const sizeMB = parseInt(req.query.size as string, 10);
+        if (isNaN(sizeMB) || sizeMB <= 0) throw new Error('Invalid size parameter');
 
-        switch (size) {
-            case 1:
-                testFile = testFile1MB;
-                break;
-            case 10:
-                testFile = testFile10MB;
-                break;
-            case 100:
-                testFile = testFile100MB;
-                break;
-            case 1000:
-                testFile = testFile1000MB;
-                break;
-            default:
-                throw new Error('Invalid size parameter');
-        }
-
-        console.log(`Download request received for ${size} MB file`);
+        const testFile = Buffer.alloc(sizeMB * MB, 'x');
+        console.log(`Download request received for ${sizeMB} MB file`);
 
         res.setHeader('Content-Type', 'application/octet-stream');
         res.setHeader('Content-Length', testFile.length.toString());
