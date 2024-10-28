@@ -1,4 +1,5 @@
 import express from 'express';
+import path from 'path';
 
 const app = express();
 app.use(express.json());
@@ -6,14 +7,21 @@ app.use(express.json());
 const PORT = process.env.PORT || 3000;
 const MB: number = 1024 * 1024;
 
-//For download speed testing///////////////////////////////////////////////////////// {
+// Serve static files from the client folder (e.g., client/index.html and client/script.js)
+app.use(express.static(path.join(__dirname, '../../client'))); // Adjust path as needed based on your folder structure
+
+app.get('/', (req, res) => {
+    res.sendFile(path.join(__dirname, '../../client/index.html'));
+});
+
+// For download speed testing
 const testFile1MB = Buffer.alloc(1 * MB, 'x');
 const testFile10MB = Buffer.alloc(10 * MB, 'x');
 const testFile100MB = Buffer.alloc(100 * MB, 'x');
 const testFile1000MB = Buffer.alloc(1000 * MB, 'x');
 
 app.get('/download', (req, res) => {
-  try{
+  try {
     const size = parseInt(req.query.size as string, 10);
 
     let testFile;
@@ -33,34 +41,25 @@ app.get('/download', (req, res) => {
 
     res.setHeader('Content-Type', 'application/octet-stream');
     res.setHeader('Content-Length', testFile.length.toString());
-    // res.setHeader('Content-Disposition', 'attachment; filename="speed_test_file.bin"');
-    
     res.send(testFile);
-
-  }catch(e){
+  } catch (e) {
     res.status(400).json({ message: 'Invalid size parameter' });
   }
-  
 });
-///////////////////////////////////////////////////////////////////////////////////////// }
 
-//For upload speed testing///////////////////////////////////////////////////////// {
+// For upload speed testing
 app.use('/upload', express.raw({ type: 'application/octet-stream', limit: '1000mb' }));
 
-app.post('/upload', (req ,res) => {
-  try{
+app.post('/upload', (req, res) => {
+  try {
     const receivedBuffer = req.body as Buffer;
+    console.log('Uploaded buffer length from client (MB):', receivedBuffer.length / MB);
 
-    // console.log('Buffer received:', receivedBuffer);
-    console.log('Uploaded buffer length from client (MB):', receivedBuffer.length/MB);
-
-    res.status(200).json({ message: 'Buffer received successfully'});
-  }catch(e){
+    res.status(200).json({ message: 'Buffer received successfully' });
+  } catch (e) {
     res.status(400).json({ message: 'Invalid buffer received' });
   }
-
 });
-///////////////////////////////////////////////////////////////////////////////////////// }
 
 app.listen(PORT, () => {
   console.log(`Server is running on http://localhost:${PORT}`);
