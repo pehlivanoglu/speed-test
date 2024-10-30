@@ -32,7 +32,7 @@ async function adaptiveDownloadTest() {
     let stableSpeed = 0;
     let stabilityCount = 0;
     const speeds = [];
-    const maxIterations = 20; // Set a maximum number of iterations
+    const maxIterations = 14; // Set a maximum number of iterations
 
     while (stabilityCount < 3 && speeds.length < maxIterations) {
         const speed = await measureDownloadSpeed(sizeMB);
@@ -69,7 +69,7 @@ async function adaptiveUploadTest() {
     let stableSpeed = 0;
     let stabilityCount = 0;
     const speeds = [];
-    const maxIterations = 15; // Set a maximum number of iterations
+    const maxIterations = 12; // Set a maximum number of iterations
 
     while (stabilityCount < 3 && speeds.length < maxIterations) {
         const speed = await measureUploadSpeed(sizeMB);

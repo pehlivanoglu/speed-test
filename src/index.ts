@@ -9,10 +9,10 @@ const PORT = process.env.PORT || 3000;
 const MB = 1024 * 1024;
 
 // Serve static files from the client folder (e.g., client/index.html and client/script.js)
-app.use(express.static(path.join(__dirname, '../../client')));
+app.use(express.static(path.join(__dirname, '../client')));
 
 app.get('/', (req, res) => {
-    res.sendFile(path.join(__dirname, '../../client/index.html'));
+    res.sendFile(path.join(__dirname, '../client/index.html'));
 });
 
 // WebSocket server setup for ping measurement
