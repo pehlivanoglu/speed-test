@@ -1,8 +1,8 @@
-const MB = 1024 * 1024; // 1 Megabyte in bytes
 const SERVER_URL = window.location.origin;
 const WS_SERVER_URL = `ws://${window.location.host}`;
+const supportedSizes = [10, 50, 100, 500]; // Ensure supported sizes
 
-// Measure Ping (RTT) using WebSocket
+// Measure Ping
 async function measurePing() {
     return new Promise((resolve, reject) => {
         const socket = new WebSocket(WS_SERVER_URL);
@@ -12,7 +12,7 @@ async function measurePing() {
             socket.onmessage = () => {
                 const end = performance.now();
                 socket.close();
-                resolve(end - start);
+                resolve(end - start); // RTT in ms
             };
         };
         socket.onerror = (err) => reject(`WebSocket error: ${err.message}`);
@@ -20,65 +20,54 @@ async function measurePing() {
 }
 
 // Measure Download Speed
-async function measureDownloadSpeed(sizeMB = 10, threads = 3, durationCap = 5) {
+async function measureDownloadSpeed(sizeMB = 100, threads = 4) {
+    if (!supportedSizes.includes(sizeMB)) {
+        throw new Error(`Unsupported file size ${sizeMB}MB.`);
+    }
+
     console.log(`Starting download test with ${threads} threads`);
 
-    const promises = Array.from({ length: threads }, () =>
-        new Promise(async (resolve) => {
-            const start = performance.now();
-            let downloadedBytes = 0;
+    const promises = Array.from({ length: threads }, async () => {
+        const start = performance.now();
+        const response = await fetch(`${SERVER_URL}/download?size=${sizeMB / threads}`);
+        await response.arrayBuffer(); // Fully download the file
+        const end = performance.now();
 
-            const response = await fetch(`${SERVER_URL}/download?size=${sizeMB}`);
-            const reader = response.body.getReader();
-
-            while (true) {
-                const { done, value } = await reader.read();
-                if (done) break;
-                downloadedBytes += value.length;
-            }
-
-            const end = performance.now();
-            resolve((downloadedBytes * 8) / (end - start) / 1000); // Mbps
-        })
-    );
+        const duration = (end - start) / 1000; // seconds
+        return ((sizeMB / threads) * 8) / duration; // Mbps per thread
+    });
 
     const speeds = await Promise.all(promises);
-    return speeds.reduce((a, b) => a + b, 0) / threads; // Average speed
+    return speeds.reduce((a, b) => a + b, 0); // Total Mbps
 }
-
 
 // Measure Upload Speed
-async function measureUploadSpeed(sizeMB = 50, chunkSizeMB = 10, threads = 3) {
-    console.log(`Starting upload test with ${threads} threads, ${sizeMB} MB total`);
-
+async function measureUploadSpeed(sizeMB = 50, chunkSizeMB = 5, threads = 4) {
+    const chunkSize = chunkSizeMB * 1024 * 1024; // Convert MB to bytes
     const totalChunks = Math.ceil(sizeMB / chunkSizeMB);
-    const chunkSize = chunkSizeMB * MB;
-    const testFile = new Uint8Array(chunkSize).fill(120); // Create a chunk of dummy data
+    const testFile = new Uint8Array(chunkSize).fill(120); // Generate dummy data
 
-    const promises = Array.from({ length: threads }, (_, threadId) =>
-        new Promise(async (resolve) => {
-            let uploadedBytes = 0;
-            const start = performance.now();
+    console.log(`Starting upload test with ${totalChunks} chunks and ${threads} threads`);
 
-            for (let i = 0; i < totalChunks / threads; i++) {
-                await fetch(`${SERVER_URL}/upload`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/octet-stream' },
-                    body: testFile,
-                }).then((res) => res.json());
-                uploadedBytes += chunkSize;
-            }
+    const promises = Array.from({ length: threads }, async () => {
+        const start = performance.now();
 
-            const end = performance.now();
-            resolve((uploadedBytes * 8) / (end - start) / 1000); // Mbps
-        })
-    );
+        for (let i = 0; i < totalChunks / threads; i++) {
+            await fetch(`${SERVER_URL}/upload`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/octet-stream' },
+                body: testFile,
+            });
+        }
+
+        const end = performance.now();
+        const duration = (end - start) / 1000; // seconds
+        return (sizeMB / threads) * 8 / duration; // Mbps per thread
+    });
 
     const speeds = await Promise.all(promises);
-    return speeds.reduce((a, b) => a + b, 0) / threads; // Average speed
+    return speeds.reduce((a, b) => a + b, 0); // Total Mbps
 }
-
-
 
 // Run the Tests
 document.getElementById('startTest').addEventListener('click', async () => {
@@ -90,11 +79,11 @@ document.getElementById('startTest').addEventListener('click', async () => {
         const ping = await measurePing();
         document.getElementById('ping').textContent = `${ping.toFixed(2)} ms`;
 
-        const downloadSpeed = await measureDownloadSpeed(20, 3);
-        document.getElementById('downloadSpeed').textContent = `${downloadSpeed} Mbps`;
+        const downloadSpeed = await measureDownloadSpeed(100, 4);
+        document.getElementById('downloadSpeed').textContent = `${downloadSpeed.toFixed(2)} Mbps`;
 
-        const uploadSpeed = await measureUploadSpeed(10, 3);
-        document.getElementById('uploadSpeed').textContent = `${uploadSpeed} Mbps`;
+        const uploadSpeed = await measureUploadSpeed(50, 5, 4);
+        document.getElementById('uploadSpeed').textContent = `${uploadSpeed.toFixed(2)} Mbps`;
     } catch (error) {
         console.error('Speed test error:', error);
     }

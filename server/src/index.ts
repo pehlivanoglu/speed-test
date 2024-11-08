@@ -4,16 +4,19 @@ import http from 'http';
 import { WebSocketServer } from 'ws';
 import os from 'os';
 import cors from 'cors';
+import fs from 'fs';
 
 const app = express();
 const PORT = process.env.PORT || 3000;
-const MB = 1024 * 1024; // 1 Megabyte in bytes
 
 // Enable CORS
 app.use(cors());
 
 // Serve static files from the client folder
 app.use(express.static(path.join(__dirname, '../../client')));
+
+// Serve pre-generated files for testing
+app.use('/public', express.static(path.join(__dirname, '../public')));
 
 app.get('/', (req, res) => {
     res.sendFile(path.join(__dirname, '../../client/index.html'));
@@ -27,30 +30,30 @@ wss.on('connection', (ws) => {
     console.log('WebSocket connection established');
     ws.on('message', (message) => {
         if (message.toString() === 'ping') {
-            ws.send('pong'); // Response for RTT measurement
+            ws.send('pong'); // Respond for RTT measurement
         }
     });
-    ws.on('close', () => console.log('WebSocket connection closed'));
+    ws.on('close', () => {
+        console.log('WebSocket connection closed');
+    });
 });
 
-// Download Speed Testing Endpoint
+// Download Speed Endpoint
 app.get('/download', (req, res) => {
     const sizeMB = parseInt(req.query.size as string, 10);
+    const filePath = path.join(__dirname, `../public/testfile-${sizeMB}MB.bin`);
 
-    if (isNaN(sizeMB) || sizeMB <= 0) {
-        return res.status(400).json({ message: 'Invalid size parameter' });
+    if (!fs.existsSync(filePath)) {
+        return res.status(404).json({ message: `File of size ${sizeMB}MB not found.` });
     }
 
-    const testFile = Buffer.alloc(sizeMB * MB, 'x'); // Generate test buffer
-    console.log(`Download request: ${sizeMB} MB from ${req.ip}`);
-
-    res.setHeader('Cache-Control', 'no-store');
-    res.setHeader('Content-Type', 'application/octet-stream');
-    res.setHeader('Content-Length', testFile.length.toString());
-    res.send(testFile);
+    console.log(`Serving download: testfile-${sizeMB}MB.bin to ${req.ip}`);
+    res.sendFile(filePath);
 });
 
-// Improved Upload Speed Testing Endpoint
+// Upload Speed Endpoint
+app.use('/upload', express.raw({ type: 'application/octet-stream', limit: '1000mb' }));
+
 app.post('/upload', (req, res) => {
     let totalBytes = 0;
 
@@ -59,7 +62,7 @@ app.post('/upload', (req, res) => {
     });
 
     req.on('end', () => {
-        console.log(`Upload complete: ${(totalBytes / MB).toFixed(2)} MB from ${req.ip}`);
+        console.log(`Upload complete: ${(totalBytes / (1024 * 1024)).toFixed(2)} MB from ${req.ip}`);
         res.status(200).json({ receivedBytes: totalBytes });
     });
 
@@ -68,7 +71,6 @@ app.post('/upload', (req, res) => {
         res.status(500).json({ message: 'Error processing upload' });
     });
 });
-
 
 // Get Local IP Addresses
 function getLocalIPs() {
@@ -85,9 +87,8 @@ function getLocalIPs() {
     return addresses;
 }
 
-// Start the server
+// Start the Server
 server.listen(PORT, '0.0.0.0', () => {
     console.log(`Server running on port ${PORT}:`);
-    console.log(`- http://localhost:${PORT}`);
     getLocalIPs().forEach((ip) => console.log(`- http://${ip}:${PORT}`));
 });
