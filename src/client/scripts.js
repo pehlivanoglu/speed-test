@@ -1,9 +1,9 @@
 const KB = 1024; // 1 KB
 const packetSize = 64 * KB; // Each packet is 64 KB
 const timeLimit = 20; // Time limit for download/upload tests in seconds
-const uploadDownloadMBLimit = 100; // 100 MB limit for testing
+const uploadDownloadMBLimit = 200; // for each test (down-up) in MB
 
-const dataBuffer = new Uint8Array(packetSize).fill(120); // Fill buffer for upload
+const dataBuffer = new Uint8Array(packetSize).fill(120); // Fill buffer for upload with dummy number
 
 const downloadSpeedSpan = document.getElementById('downloadSpeed');
 const uploadSpeedSpan = document.getElementById('uploadSpeed');

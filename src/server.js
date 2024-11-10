@@ -15,9 +15,9 @@ const dataBuffer = Buffer.alloc(packetSize, 'x');
 const timeLimit = 20; // seconds for tests
 
 // Serve client files
-app.use(express.static(path.join(__dirname, '../../client')));
+app.use(express.static(path.join(__dirname, './client')));
 app.get('/', (req, res) => {
-  res.sendFile(path.join(__dirname, '../../client/index.html'));
+  res.sendFile(path.join(__dirname, './client/index.html'));
 });
 
 // Start the HTTP server
@@ -70,7 +70,7 @@ uploadServer.on('connection', (ws) => {
       const timeElapsed = (uploadEnd - uploadStart) / 1000; // Time in seconds
       const measuredBandwidth = (totalData / timeElapsed).toFixed(1);
 
-      console.log(`Upload - Total data uploaded: ${totalData.toFixed(2)} Mbps`);
+      console.log(`Upload - Total data uploaded: ${totalData.toFixed(2)} Mb`);
       console.log(`Upload - Time elapsed: ${timeElapsed.toFixed(2)} seconds`);
       console.log(`Upload - Measured upload speed: ${measuredBandwidth} Mbps`);
 
@@ -123,9 +123,6 @@ pingServer.on('connection', (ws) => {
 });
 
 // --------------------------------------
-// Log all server endpoints
-console.log('Servers running:');
-console.log(`Web server on http://0.0.0.0:${HTTP_PORT}`);
 console.log(`Download server on ws://0.0.0.0:${DOWNLOAD_WS_PORT}`);
 console.log(`Upload server on ws://0.0.0.0:${UPLOAD_WS_PORT}`);
 console.log(`Ping-Pong server on ws://0.0.0.0:${PING_WS_PORT}`);
