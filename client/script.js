@@ -1,9 +1,8 @@
 const KB = 1024;
 const packetSize = 64 * KB;
 const uploadDownloadMBLimit = 100;
-const timeLimit = 20; // in seconds
+const timeLimit = 20; // seconds for tests
 
-// DOM elements
 const downloadSpeedSpan = document.getElementById('downloadSpeed');
 const uploadSpeedSpan = document.getElementById('uploadSpeed');
 const pingResult = document.getElementById('ping');
@@ -12,61 +11,83 @@ const jitterResult = document.getElementById('jitter');
 document.getElementById('startTest').addEventListener('click', async () => {
   console.log('Starting speed tests...');
 
-  await startPingTest();
+  // Ping & Jitter Test
+  console.log('Starting Ping and Jitter Test...');
+  await measurePingAndJitter();
+
+  // Download Speed Test
+  console.log('Starting Download Test...');
   await startDownloadTest();
+
+  // Upload Speed Test
+  console.log('Starting Upload Test...');
   await startUploadTest();
 });
 
-async function startPingTest() {
-  console.log('Starting Ping Test...');
+async function measurePingAndJitter() {
   const WS_SERVER_URL = `ws://${window.location.hostname}:3003`;
   const socket = new WebSocket(WS_SERVER_URL);
   const pingTimes = [];
-  
+
   return new Promise((resolve) => {
     socket.onopen = () => {
-      let count = 0;
+      let warmupCount = 3;
+      let actualCount = 0;
+
+      console.log('Ping test initiated...');
 
       const interval = setInterval(() => {
         const start = performance.now();
         socket.send('ping');
+        console.log(`Ping sent...`);
+
         socket.onmessage = (event) => {
           const { type, timestamp } = JSON.parse(event.data);
           if (type === 'pong') {
             const ping = performance.now() - start;
-            pingTimes.push(ping);
-            console.log(`Ping: ${ping.toFixed(2)} ms`);
-            count++;
-            if (count >= 5) {
-              clearInterval(interval);
-              socket.close();
+            if (warmupCount > 0) {
+              console.log(`Warm-up Ping: ${ping.toFixed(2)} ms`);
+              warmupCount--;
+            } else {
+              pingTimes.push(ping);
+              console.log(`Measured Ping: ${ping.toFixed(2)} ms`);
+              actualCount++;
 
-              const avgPing = pingTimes.reduce((a, b) => a + b, 0) / pingTimes.length;
-              const jitter = pingTimes.reduce((acc, time, index, array) => {
-                if (index > 0) return acc + Math.abs(time - array[index - 1]);
-                return acc;
-              }, 0) / (pingTimes.length - 1);
+              if (actualCount >= 5) {
+                clearInterval(interval);
+                socket.close();
 
-              pingResult.textContent = `${avgPing.toFixed(2)} ms`;
-              jitterResult.textContent = `${jitter.toFixed(2)} ms`;
-              resolve();
+                const avgPing = pingTimes.reduce((a, b) => a + b, 0) / pingTimes.length;
+                const jitter = pingTimes.reduce((acc, time, index, array) => {
+                  if (index > 0) return acc + Math.abs(time - array[index - 1]);
+                  return acc;
+                }, 0) / (pingTimes.length - 1);
+
+                console.log(`Average Ping: ${avgPing.toFixed(2)} ms`);
+                console.log(`Jitter: ${jitter.toFixed(2)} ms`);
+
+                pingResult.textContent = `${avgPing.toFixed(2)} ms`;
+                jitterResult.textContent = `${jitter.toFixed(2)} ms`;
+                resolve();
+              }
             }
           }
         };
-      }, 1000);
+      }, 1000); // Send a ping every second
     };
   });
 }
 
 async function startDownloadTest() {
-  console.log('Starting Download Test...');
   const downloadSocket = new WebSocket(`ws://${window.location.hostname}:3001`);
   let counter = 0;
-  let downloadStartTime, firstPacketTime;
+  let firstPacketTime;
 
   return new Promise((resolve) => {
     downloadSocket.onopen = () => {
+      console.log('Download socket connected.');
       downloadSocket.send(`${uploadDownloadMBLimit}`);
+      console.log(`Requested ${uploadDownloadMBLimit}MB of data...`);
     };
 
     downloadSocket.onmessage = () => {
@@ -78,10 +99,14 @@ async function startDownloadTest() {
     };
 
     downloadSocket.onclose = () => {
-      const totalData = (counter * packetSize * 8) / (KB * KB); // Convert to Mbps
+      const totalData = (counter * packetSize * 8) / (KB * KB); // Mbps
       const timeElapsed = (performance.now() - firstPacketTime) / 1000; // seconds
       const speed = (totalData / timeElapsed).toFixed(2); // Mbps
+
+      console.log(`Total downloaded data: ${totalData.toFixed(2)} Mbps`);
+      console.log(`Time elapsed: ${timeElapsed.toFixed(2)} seconds`);
       console.log(`Download Speed: ${speed} Mbps`);
+
       downloadSpeedSpan.textContent = `${speed} Mbps`;
       resolve();
     };
@@ -95,12 +120,14 @@ async function startDownloadTest() {
 }
 
 async function startUploadTest() {
-  console.log('Starting Upload Test...');
   const uploadSocket = new WebSocket(`ws://${window.location.hostname}:3002`);
-  let numPackets = (uploadDownloadMBLimit * KB * KB) / packetSize;
+  const numPackets = (uploadDownloadMBLimit * KB * KB) / packetSize;
 
   return new Promise((resolve) => {
     uploadSocket.onopen = () => {
+      console.log('Upload socket connected.');
+      console.log(`Sending ${uploadDownloadMBLimit}MB of data...`);
+
       for (let i = 0; i < numPackets; i++) {
         uploadSocket.send(new Uint8Array(packetSize).fill(120));
       }
