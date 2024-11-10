@@ -1,82 +1,86 @@
-const SERVER_URL = window.location.origin;
-const WS_SERVER_URL = `ws://${window.location.host}`;
+const KB = 1024;
+const packetSize = 64 * KB;
+const timeLimit = 20; // seconds
+const uploadDownloadMBLimit = 100;
 
-// Supported pre-generated file sizes
-const supportedSizes = [10, 50, 100, 500];
+let downloadSpeedSpan = document.getElementById('downloadSpeed');
+let uploadSpeedSpan = document.getElementById('uploadSpeed');
 
-// Measure Ping
-async function measurePing() {
-    return new Promise((resolve, reject) => {
-        const socket = new WebSocket(WS_SERVER_URL);
-        socket.onopen = () => {
-            const start = performance.now();
-            socket.send('ping');
-            socket.onmessage = () => {
-                const end = performance.now();
-                socket.close();
-                resolve(end - start); // RTT in ms
-            };
+document.getElementById('startTest').addEventListener('click', async () => {
+    console.log('Starting speed test...');
+    downloadSpeedSpan.textContent = 'Testing...';
+    uploadSpeedSpan.textContent = 'Waiting...';
+
+    await startDownloadTest();
+    await startUploadTest();
+});
+
+function startDownloadTest() {
+    return new Promise((resolve) => {
+        console.log('Download – Starting test...');
+        const downloadSocket = new WebSocket(`ws://${window.location.hostname}:3001`);
+        let counter = 0;
+        let downloadStartTime, downloadEndTime, firstPacketTime;
+
+        downloadSocket.onopen = () => {
+            downloadSocket.send(`${uploadDownloadMBLimit}`);
         };
-        socket.onerror = (err) => reject(`WebSocket error: ${err.message}`);
+
+        downloadSocket.onmessage = () => {
+            downloadEndTime = performance.now();
+            if (counter === 0) {
+                firstPacketTime = performance.now();
+            }
+            if (performance.now() - firstPacketTime > timeLimit * 1000) {
+                downloadSocket.close();
+            }
+            counter++;
+        };
+
+        downloadSocket.onclose = () => {
+            const totalData = (counter * packetSize * 8) / (KB * KB); // Convert to Mbps
+            const timeElapsed = (downloadEndTime - firstPacketTime) / 1000; // In seconds
+            const speed = (totalData / timeElapsed).toFixed(2); // Mbps
+            console.log(`Download - ${speed} Mbps`);
+            downloadSpeedSpan.textContent = speed;
+            resolve();
+        };
+
+        downloadSocket.onerror = (err) => {
+            console.error('Download WebSocket error:', err);
+            downloadSpeedSpan.textContent = 'Error';
+            resolve();
+        };
     });
 }
 
-// Measure Download Speed
-async function measureDownloadSpeed(sizeMB = 100) {
-    if (!supportedSizes.includes(sizeMB)) {
-        throw new Error(`Unsupported file size ${sizeMB}MB. Supported sizes: ${supportedSizes.join(', ')}MB.`);
-    }
+function startUploadTest() {
+    return new Promise((resolve) => {
+        console.log('Upload – Starting test...');
+        const uploadSocket = new WebSocket(`ws://${window.location.hostname}:3002`);
+        let uploadStartTime, uploadEndTime;
 
-    console.log(`Starting download test for ${sizeMB} MB`);
+        uploadSocket.onopen = () => {
+            const numPackets = (uploadDownloadMBLimit * KB * KB) / packetSize;
+            uploadSocket.send('0'); // Start signal
 
-    const start = performance.now();
-    const response = await fetch(`${SERVER_URL}/download?size=${sizeMB}`);
-    await response.arrayBuffer(); // Fully download the file
-    const end = performance.now();
+            for (let i = 0; i < numPackets; i++) {
+                uploadSocket.send(new Uint8Array(packetSize).fill(120));
+            }
 
-    const duration = (end - start) / 1000; // seconds
-    return (sizeMB * 8) / duration; // Mbps
+            uploadSocket.send('1');
+        };
+
+        uploadSocket.onmessage = (event) => {
+            console.log(`Upload - ${event.data} Mbps`);
+            uploadSpeedSpan.textContent = event.data;
+            resolve();
+        };
+
+        uploadSocket.onerror = (err) => {
+            console.error('Upload WebSocket error:', err);
+            uploadSpeedSpan.textContent = 'Error';
+            resolve();
+        };
+    });
 }
-
-// Measure Upload Speed
-async function measureUploadSpeed(sizeMB = 50, chunkSizeMB = 5) {
-    const chunkSize = chunkSizeMB * 1024 * 1024; // Convert MB to bytes
-    const totalChunks = Math.ceil(sizeMB / chunkSizeMB);
-    const testFile = new Uint8Array(chunkSize).fill(120); // Dummy data
-
-    console.log(`Starting upload test with ${totalChunks} chunks`);
-
-    const start = performance.now();
-
-    for (let i = 0; i < totalChunks; i++) {
-        await fetch(`${SERVER_URL}/upload`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/octet-stream' },
-            body: testFile,
-        });
-    }
-
-    const end = performance.now();
-    const duration = (end - start) / 1000; // seconds
-    return (sizeMB * 8) / duration; // Mbps
-}
-
-// Run the Tests
-document.getElementById('startTest').addEventListener('click', async () => {
-    document.getElementById('ping').textContent = '...';
-    document.getElementById('downloadSpeed').textContent = '...';
-    document.getElementById('uploadSpeed').textContent = '...';
-
-    try {
-        const ping = await measurePing();
-        document.getElementById('ping').textContent = `${ping.toFixed(2)} ms`;
-
-        const downloadSpeed = await measureDownloadSpeed(100);
-        document.getElementById('downloadSpeed').textContent = `${downloadSpeed.toFixed(2)} Mbps`;
-
-        const uploadSpeed = await measureUploadSpeed(50);
-        document.getElementById('uploadSpeed').textContent = `${uploadSpeed.toFixed(2)} Mbps`;
-    } catch (error) {
-        console.error('Speed test error:', error);
-    }
-});
