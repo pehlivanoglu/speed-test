@@ -33,7 +33,7 @@ server.listen(HTTP_PORT, '0.0.0.0', () => {
 const downloadServer = new WebSocket.Server({ port: DOWNLOAD_WS_PORT });
 downloadServer.on('connection', (ws) => {
   console.log('Download - Client connected');
-  
+
   ws.on('message', (message) => {
     console.log(`Download - Received request for ${message} MB of data`);
     const maxDataToSend = KB * KB * parseInt(message);
