@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Internet Speed Test</title>
+    <style>
+        body {
+            font-family: 'Helvetica Neue', Arial, sans-serif;
+            background-color: #eef2f6;
+            margin: 0;
+            padding: 0;
+            color: #333;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+        }
+
+        .container {
+            max-width: 800px; /* Increased width */
+            background: linear-gradient(135deg, #ffffff, #f8fafc);
+            border-radius: 16px;
+            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.1);
+            text-align: center;
+            padding: 40px 30px;
+        }
+
+        h1 {
+            font-size: 36px;
+            color: #2c3e50;
+            margin-bottom: 30px;
+        }
+
+        .result {
+            margin-top: 20px;
+            text-align: left;
+            font-size: 20px;
+        }
+
+        .result p {
+            margin: 15px 0;
+            padding: 25px;
+            background: #f1f3f5;
+            border-radius: 12px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            width: 90%; /* Increased box width */
+            margin-left: auto;
+            margin-right: auto;
+        }
+
+        .result span {
+            font-weight: bold;
+            font-size: 26px;
+        }
+
+        button {
+            display: inline-block;
+            padding: 15px 50px;
+            font-size: 20px;
+            background-color: #007bff;
+            color: white;
+            border: none;
+            border-radius: 10px;
+            cursor: pointer;
+            transition: background-color 0.3s ease, transform 0.2s ease;
+            margin-top: 20px;
+        }
+
+        button:hover {
+            background-color: #0056b3;
+            transform: scale(1.05);
+        }
+
+        button:disabled {
+            background-color: #b0c4de;
+            cursor: not-allowed;
+        }
+
+        /* State-based colors */
+        .waiting {
+            color: #7f8c8d;
+        }
+
+        .measuring {
+            color: #f39c12; /* Orange */
+        }
+
+        .success {
+            color: #27ae60; /* Green */
+        }
+
+        .error {
+            color: #e74c3c; /* Red */
+        }
+
+        .label {
+            font-weight: 600;
+            color: #555;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Internet Speed Test</h1>
+        <button id="startTest">Start Test</button>
+
+        <div class="result">
+            <p><span class="label">Ping:</span> <span id="ping" class="waiting">Waiting...</span></p>
+            <p><span class="label">Jitter:</span> <span id="jitter" class="waiting">Waiting...</span></p>
+            <p><span class="label">Download Speed:</span> <span id="downloadSpeed" class="waiting">Waiting...</span></p>
+            <p><span class="label">Upload Speed:</span> <span id="uploadSpeed" class="waiting">Waiting...</span></p>
+        </div>
+    </div>
+    <script src="scripts.js"></script>
+</body>
+</html>
