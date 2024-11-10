@@ -32,7 +32,7 @@ npm run dev
 # Our Current Server Specs
 We are using a Compute Engine from Google Cloud Services. Server is located in 'europe-west12-a' zone, Torino, Italy:
 - Machine type : e2-standard-2
-- : Intel Broadwell, 8 vCPU
+- CPU : Intel Broadwell, 8 core vCPU
 - Architecture : x86/64
 - OS : Debian 12 'Bookworm'
 - Disk : 10GB
