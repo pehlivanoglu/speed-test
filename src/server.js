@@ -4,15 +4,16 @@ const path = require('path');
 const http = require('http');
 
 const app = express();
-const HTTP_PORT = 3000;
-const DOWNLOAD_WS_PORT = 3001;
-const UPLOAD_WS_PORT = 3002;
-const PING_WS_PORT = 3003;
+const HTTP_PORT = 3030;
+const DOWNLOAD_WS_PORT = 3031;
+const UPLOAD_WS_PORT = 3032;
+const PING_WS_PORT = 3033;
 
 const KB = 1024;
 const packetSize = 64 * KB;
 const dataBuffer = Buffer.alloc(packetSize, 'x');
-const timeLimit = 20; // seconds for tests
+const timeLimit = 15; // seconds for tests
+const SERVER_IP = "34.17.87.58";
 
 // Serve client files
 app.use(express.static(path.join(__dirname, './client')));
@@ -23,7 +24,7 @@ app.get('/', (req, res) => {
 // Start the HTTP server
 const server = http.createServer(app);
 server.listen(HTTP_PORT, '0.0.0.0', () => {
-  console.log(`Web server running on http://0.0.0.0:${HTTP_PORT}`);
+  console.log(`Web server running on http://${SERVER_IP}:${HTTP_PORT}`);
 });
 
 // --------------------------------------
@@ -66,11 +67,11 @@ uploadServer.on('connection', (ws) => {
   ws.on('message', (message) => {
     if (parseInt(message) === 1) {
       uploadEnd = Date.now();
-      const totalData = (counter * packetSize * 8) / (KB * KB); // Data in Mbps
+      const totalData = (counter * packetSize * 8) / (KB * KB); // Data in Megabits
       const timeElapsed = (uploadEnd - uploadStart) / 1000; // Time in seconds
       const measuredBandwidth = (totalData / timeElapsed).toFixed(1);
 
-      console.log(`Upload - Total data uploaded: ${totalData.toFixed(2)} Mb`);
+      console.log(`Upload - Total data uploaded: ${totalData.toFixed(2)} Megabits`);
       console.log(`Upload - Time elapsed: ${timeElapsed.toFixed(2)} seconds`);
       console.log(`Upload - Measured upload speed: ${measuredBandwidth} Mbps`);
 
@@ -84,8 +85,19 @@ uploadServer.on('connection', (ws) => {
       }
 
       if (Date.now() - uploadStart > timeLimit * 1000) {
-        console.warn('Upload - Time limit exceeded, terminating connection');
+        console.warn('Upload - Time limit exceeded, terminating connection. But,');
+        uploadEnd = Date.now();
+        const totalData = (counter * packetSize * 8) / (KB * KB); // Data in Megabits
+        const timeElapsed = (uploadEnd - uploadStart) / 1000; // Time in seconds
+        const measuredBandwidth = (totalData / timeElapsed).toFixed(1);
+
+        console.log(`Upload - Total data uploaded: ${totalData.toFixed(2)} Mbits`);
+        console.log(`Upload - Time elapsed: ${timeElapsed.toFixed(2)} seconds`);
+        console.log(`Upload - Measured upload speed: ${measuredBandwidth} Mbps`);
+
+        ws.send(measuredBandwidth);
         ws.terminate();
+        counter = 0;
       }
 
       counter++;
@@ -123,6 +135,6 @@ pingServer.on('connection', (ws) => {
 });
 
 // --------------------------------------
-console.log(`Download server on ws://0.0.0.0:${DOWNLOAD_WS_PORT}`);
-console.log(`Upload server on ws://0.0.0.0:${UPLOAD_WS_PORT}`);
-console.log(`Ping-Pong server on ws://0.0.0.0:${PING_WS_PORT}`);
+console.log(`Download server on ws://${SERVER_IP}:${DOWNLOAD_WS_PORT}`);
+console.log(`Upload server on ws://${SERVER_IP}:${UPLOAD_WS_PORT}`);
+console.log(`Ping-Pong server on ws://${SERVER_IP}:${PING_WS_PORT}`);

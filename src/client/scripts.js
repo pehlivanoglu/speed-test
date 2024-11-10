@@ -1,7 +1,11 @@
+const DOWNLOAD_WS_PORT = 3031;
+const UPLOAD_WS_PORT = 3032;
+const PING_WS_PORT = 3033;
+
 const KB = 1024; // 1 KB
 const packetSize = 64 * KB; // Each packet is 64 KB
-const timeLimit = 20; // Time limit for download/upload tests in seconds
-const uploadDownloadMBLimit = 200; // for each test (down-up) in MB
+const timeLimit = 15; // Time limit for download/upload tests in seconds
+const uploadDownloadMBLimit = 100; // for each test (down-up) in MB
 
 const dataBuffer = new Uint8Array(packetSize).fill(120); // Fill buffer for upload with dummy number
 
@@ -49,9 +53,8 @@ function setTextAndStyle(element, text, styleClass) {
     element.className = styleClass;
 }
 
-// Measure Ping & Jitter
 async function measurePingAndJitter() {
-    const WS_SERVER_URL = `ws://${window.location.hostname}:3003`;
+    const WS_SERVER_URL = `ws://${window.location.hostname}:${PING_WS_PORT}`;
     const socket = new WebSocket(WS_SERVER_URL);
     const pingTimes = [];
 
@@ -104,9 +107,8 @@ async function measurePingAndJitter() {
     });
 }
 
-// Measure Download Speed
 async function startDownloadTest() {
-    const downloadSocket = new WebSocket(`ws://${window.location.hostname}:3001`);
+    const downloadSocket = new WebSocket(`ws://${window.location.hostname}:${DOWNLOAD_WS_PORT}`);
     let counter = 0;
     let firstPacketTime;
 
@@ -146,9 +148,8 @@ async function startDownloadTest() {
     });
 }
 
-// Measure Upload Speed
 async function startUploadTest() {
-    const uploadSocket = new WebSocket(`ws://${window.location.hostname}:3002`);
+    const uploadSocket = new WebSocket(`ws://${window.location.hostname}:${UPLOAD_WS_PORT}`);
     const numPackets = (uploadDownloadMBLimit * KB * KB) / packetSize;
 
     return new Promise((resolve) => {
