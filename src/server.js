@@ -13,7 +13,7 @@ const KB = 1024;
 const packetSize = 64 * KB;
 const dataBuffer = Buffer.alloc(packetSize, 'x');
 const timeLimit = 15; // seconds for tests
-const SERVER_IP = "34.88.60.136";
+const SERVER_IP = "34.88.56.219";
 
 // Serve client files
 app.use(express.static(path.join(__dirname, './client')));
