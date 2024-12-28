@@ -1,5 +1,7 @@
 # About Easy-Speed
-Easy-Speed project focuses on creating a simple but effective tool that allows users to measure their internet speed. By visiting the tool’s website(http://34.17.87.58:3030/), users can easily measure key network metrics such as ping, download speed, and upload speed. This tool is hosted on a Google Cloud server, making it accessible to a wide audience, and it aims to provide accurate results quickly while using minimal data (100MB maximum).
+Easy-Speed project focuses on creating a simple but effective tool that allows users to measure their internet speed. By visiting the tool’s website(http://34.88.60.136:3030/), users can easily measure key network metrics such as ping, download speed, and upload speed. This tool is hosted on a Google Cloud server, making it accessible to a wide audience, and it aims to provide accurate results quickly while using minimal data (10s0MB maximum).
+
+- Try Easy-Speed! : http://34.88.60.136:3030/
 
 # Server Setup & Run
 ### Prerequisites:

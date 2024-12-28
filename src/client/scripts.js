@@ -4,8 +4,8 @@ const PING_WS_PORT = 3033;
 
 const KB = 1024; // 1 KB
 const packetSize = 64 * KB; // Each packet is 64 KB
-const timeLimit = 25; // Time limit for download/upload tests in seconds
-const uploadDownloadMBLimit = 120; // for each test (down-up) in MB
+const timeLimit = 15; // Time limit for download/upload tests in seconds
+const uploadDownloadMBLimit = 100; // for each test (down-up) in MB
 
 const dataBuffer = new Uint8Array(packetSize).fill(120); // Fill buffer for upload with dummy number
 
@@ -60,8 +60,7 @@ async function measurePingAndJitter() {
 
     return new Promise((resolve) => {
         socket.onopen = () => {
-            let warmupCount = 3;
-            let actualCount = 0;
+            let pingCount = 0;
 
             console.log('Ping test initiated...');
 
@@ -71,34 +70,32 @@ async function measurePingAndJitter() {
                 console.log(`Ping sent...`);
 
                 socket.onmessage = (event) => {
-                    const { type, timestamp } = JSON.parse(event.data);
+                    const { type } = JSON.parse(event.data);
                     if (type === 'pong') {
                         const ping = performance.now() - start;
-                        if (warmupCount > 0) {
-                            console.log(`Warm-up Ping: ${ping.toFixed(2)} ms`);
-                            warmupCount--;
-                        } else {
-                            pingTimes.push(ping);
-                            console.log(`Measured Ping: ${ping.toFixed(2)} ms`);
-                            actualCount++;
+                        pingTimes.push(ping);
+                        console.log(`Measured Ping: ${ping.toFixed(2)} ms`);
+                        pingCount++;
 
-                            if (actualCount >= 5) {
-                                clearInterval(interval);
-                                socket.close();
+                        if (pingCount >= 8) {
+                            clearInterval(interval);
+                            socket.close();
 
-                                const avgPing = pingTimes.reduce((a, b) => a + b, 0) / pingTimes.length;
-                                const jitter = pingTimes.reduce((acc, time, i, arr) => {
-                                    if (i > 0) return acc + Math.abs(time - arr[i - 1]);
-                                    return acc;
-                                }, 0) / (pingTimes.length - 1);
+                            pingTimes.sort((a, b) => a - b);
+                            const top3Pings = pingTimes.slice(0, 3);
+                            const avgPing = top3Pings.reduce((a, b) => a + b, 0) / top3Pings.length;
 
-                                console.log(`Average Ping: ${avgPing.toFixed(2)} ms`);
-                                console.log(`Jitter: ${jitter.toFixed(2)} ms`);
+                            const jitter = top3Pings.reduce((acc, time, i, arr) => {
+                                if (i > 0) return acc + Math.abs(time - arr[i - 1]);
+                                return acc;
+                            }, 0) / (top3Pings.length - 1);
 
-                                setTextAndStyle(pingResult, `${avgPing.toFixed(2)} ms`, 'success');
-                                setTextAndStyle(jitterResult, `${jitter.toFixed(2)} ms`, 'success');
-                                resolve();
-                            }
+                            console.log(`Average Ping (Top 3): ${avgPing.toFixed(2)} ms`);
+                            console.log(`Jitter: ${jitter.toFixed(2)} ms`);
+
+                            setTextAndStyle(pingResult, `${avgPing.toFixed(2)} ms`, 'success');
+                            setTextAndStyle(jitterResult, `${jitter.toFixed(2)} ms`, 'success');
+                            resolve();
                         }
                     }
                 };
@@ -107,11 +104,13 @@ async function measurePingAndJitter() {
     });
 }
 
+
 async function startDownloadTest() {
     const downloadSocket = new WebSocket(`ws://${window.location.hostname}:${DOWNLOAD_WS_PORT}`);
     let counter = 0;
     let firstPacketTime;
-
+    let end = 0
+    
     return new Promise((resolve) => {
         downloadSocket.onopen = () => {
             console.log('Download socket connected.');
@@ -119,22 +118,37 @@ async function startDownloadTest() {
             console.log(`Requested ${uploadDownloadMBLimit}MB of data...`);
         };
 
-        downloadSocket.onmessage = () => {
-            if (counter === 0) firstPacketTime = performance.now();
-            if (performance.now() - firstPacketTime > timeLimit * 1000) {
+        downloadSocket.onmessage = (event) => {
+            if (event.data === "start") {
+                firstPacketTime = performance.now();
+            }
+            console.log(`Received packet ${counter}`);
+            if (counter >= 1600 || performance.now() - firstPacketTime > timeLimit * 1000) {
+                //1600 is the maximum number of packets that can be sent
+                end = performance.now();
                 downloadSocket.close();
+                const totalData = (counter * packetSize * 8) / (KB * KB); // Mbps
+                const timeElapsed = (end - firstPacketTime) / 1000; // seconds
+                const speed = (totalData / timeElapsed).toFixed(2); // Mbps
+                
+                console.log(`Total downloaded data: ${totalData.toFixed(2)} Megabits`);
+                console.log(`Time elapsed: ${timeElapsed.toFixed(2)} seconds`);
+                console.log(`Download Speed: ${speed} Mbps`);
+
+                setTextAndStyle(downloadSpeedSpan, `${speed} Mbps`, 'success');
+                resolve();
             }
             counter++;
         };
 
         downloadSocket.onclose = () => {
             const totalData = (counter * packetSize * 8) / (KB * KB); // Mbps
-            const timeElapsed = (performance.now() - firstPacketTime) / 1000; // seconds
+            const timeElapsed = (end - firstPacketTime) / 1000; // seconds
             const speed = (totalData / timeElapsed).toFixed(2); // Mbps
-
-            console.log(`Total downloaded data: ${totalData.toFixed(2)} Mbps`);
-            console.log(`Time elapsed: ${timeElapsed.toFixed(2)} seconds`);
-            console.log(`Download Speed: ${speed} Mbps`);
+            
+            // console.log(`Total downloaded data: ${totalData.toFixed(2)} Megabits`);
+            // console.log(`Time elapsed: ${timeElapsed.toFixed(2)} seconds`);
+            // console.log(`Download Speed: ${speed} Mbps`);
 
             setTextAndStyle(downloadSpeedSpan, `${speed} Mbps`, 'success');
             resolve();

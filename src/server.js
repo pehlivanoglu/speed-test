@@ -12,8 +12,8 @@ const PING_WS_PORT = 3033;
 const KB = 1024;
 const packetSize = 64 * KB;
 const dataBuffer = Buffer.alloc(packetSize, 'x');
-const timeLimit = 25; // seconds for tests
-const SERVER_IP = "34.17.87.58";
+const timeLimit = 15; // seconds for tests
+const SERVER_IP = "34.88.60.136";
 
 // Serve client files
 app.use(express.static(path.join(__dirname, './client')));
@@ -40,12 +40,13 @@ downloadServer.on('connection', (ws) => {
     const maxDataToSend = KB * KB * parseInt(message);
     const numPackets = maxDataToSend / packetSize;
 
+    ws.send('start');
     for (let i = 0; i < numPackets; i++) {
       ws.send(dataBuffer);
     }
 
     console.log(`Download - Sent ${numPackets} packets (${message} MB total)`);
-    ws.close();
+    // ws.close();
   });
 
   ws.on('close', () => {
@@ -76,7 +77,7 @@ uploadServer.on('connection', (ws) => {
       console.log(`Upload - Measured upload speed: ${measuredBandwidth} Mbps`);
 
       ws.send(measuredBandwidth);
-      ws.close();
+      ws.terminate();
       counter = 0;
     } else {
       if (counter === 0) {
